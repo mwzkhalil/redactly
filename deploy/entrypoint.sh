@@ -8,8 +8,8 @@
 # visibly, and that is a worse failure than a restart.
 set -euo pipefail
 
-PORT="${PORT:-7860}"
-API_PORT="${API_PORT:-8000}"
+PORT="${PORT:-24680}"
+API_PORT="${API_PORT:-24681}"
 STATE_DIR="$(dirname "${REDACTLY_DATABASE_PATH:-/home/node/state/redactly.sqlite3}")"
 mkdir -p "$STATE_DIR"
 

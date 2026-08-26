@@ -29,11 +29,36 @@ run in production is what was tested.
   `document.modelContext` never appears and the tools cannot register. The only
   exception is `localhost`.
 
+## Ports
+
+Only one port can conflict with anything else you are running: the published
+one, `REDACTLY_HOST_PORT`, default **28419**. The viewer and the API also listen
+on ports inside the container (24680 and 24681), but those live in the
+container's own network namespace and cannot collide with the host no matter
+what else is bound there.
+
+The defaults dodge two ranges deliberately. Below roughly 20000 is crowded with
+registered services. At 32768 and above is where Linux allocates ephemeral
+source ports for outgoing connections, so publishing there can collide with a
+connection your own server makes.
+
+Check what a candidate port is up against and set it:
+
+```bash
+ss -tlnp | awk '{print $4}' | grep -oE '[0-9]+$' | sort -n | uniq
+cp .env.example .env      # then edit REDACTLY_HOST_PORT
+```
+
+Changing the in-container ports is possible but needs `--build`, because the
+viewer proxies the API through a Next.js rewrite whose destination is resolved
+when the bundle is compiled. Changing only the published port needs no rebuild.
+
 ## Run it
 
 ```bash
 git clone <your-repo-url> redactly
 cd redactly
+cp .env.example .env      # optional; every value has a working default
 docker compose up -d --build
 docker compose logs -f
 ```
@@ -46,7 +71,7 @@ container should not depend on the Hugging Face hub being reachable.
 Confirm it came up healthy:
 
 ```bash
-curl -fsS http://127.0.0.1:7860/api/backend/health
+curl -fsS http://127.0.0.1:28419/api/backend/health
 docker compose logs | grep -E 'detector_ready|fixtures_seeded'
 ```
 
@@ -64,7 +89,7 @@ Automatic certificates and no timeout to get wrong:
 
 ```caddyfile
 redactly.example.com {
-    reverse_proxy 127.0.0.1:7860
+    reverse_proxy 127.0.0.1:28419
 }
 ```
 
@@ -82,7 +107,7 @@ server {
     # ssl_certificate / ssl_certificate_key via certbot
 
     location / {
-        proxy_pass http://127.0.0.1:7860;
+        proxy_pass http://127.0.0.1:28419;
         proxy_http_version 1.1;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
@@ -132,6 +157,10 @@ Everything is read from the environment with a `REDACTLY_` prefix; see
 
 | Variable | Default in the image | Notes |
 | --- | --- | --- |
+| `REDACTLY_HOST_PORT` | `28419` | The only port that can conflict on your host |
+| `REDACTLY_WEB_PORT` | `24680` | In-container; changing it needs `--build` |
+| `REDACTLY_API_PORT` | `24681` | In-container; changing it needs `--build` |
+| `REDACTLY_BIND` | `127.0.0.1` | `0.0.0.0` exposes it directly, but then WebMCP never activates |
 | `REDACTLY_MASTER_KEY` | generated into the state volume | Base64 32 bytes. Set it explicitly if you ever need to move the database between hosts |
 | `REDACTLY_COOKIE_SECURE` | `1` | Correct behind TLS; the cookie will not be sent over plain HTTP |
 | `REDACTLY_APPROVAL_TIMEOUT_SECONDS` | `180` via compose | Keep the proxy read timeout above this |

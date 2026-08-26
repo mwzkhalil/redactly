@@ -81,11 +81,13 @@ stopped first, since SQLite holds the file open.
 ## Deploying
 
 ```bash
+cp .env.example .env      # optional; pick a free REDACTLY_HOST_PORT
 docker compose up -d --build
 ```
 
-One container, one origin: Next.js is the front door and uvicorn listens on
-container loopback. That is a requirement rather than tidiness — an unmask blocks
+Listens on `127.0.0.1:28419` by default, for a reverse proxy to terminate TLS in
+front of. One container, one origin: Next.js is the front door and uvicorn
+listens on container loopback. That is a requirement rather than tidiness — an unmask blocks
 server-side until a human decides, so anything with a short request timeout in
 front of it will cut the approval off mid-wait. Put TLS in front, since WebMCP
 needs a secure context to activate at all.

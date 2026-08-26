@@ -8,6 +8,11 @@ __pycache__/
 # Generated at runtime: SQLite database and the development master key.
 services/api/var/
 
+# Deployment config. May hold REDACTLY_MASTER_KEY and an origin trial token.
+.env
+.env.*
+!.env.example
+
 node_modules/
 .next/
 next-env.d.ts

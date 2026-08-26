@@ -4,10 +4,18 @@
 # door, uvicorn listens on container loopback. Put a TLS terminator in front of
 # this — WebMCP requires a secure context, so the demo is inert over plain HTTP
 # on anything but localhost.
+#
+# Ports are all overridable from a .env file beside this one; see .env.example.
+# Changing the in-container ports rebuilds the image, because the viewer's proxy
+# destination is resolved when the bundle is built.
 
 services:
   redactly:
-    build: .
+    build:
+      context: .
+      args:
+        WEB_PORT: ${REDACTLY_WEB_PORT:-24680}
+        API_PORT: ${REDACTLY_API_PORT:-24681}
     image: redactly:latest
     container_name: redactly
     restart: unless-stopped
@@ -16,9 +24,14 @@ services:
     # should reach this. Set REDACTLY_BIND=0.0.0.0 to expose it directly, but
     # then WebMCP will not activate for anyone, because the origin is not secure.
     ports:
-      - "${REDACTLY_BIND:-127.0.0.1}:7860:7860"
+      - "${REDACTLY_BIND:-127.0.0.1}:${REDACTLY_HOST_PORT:-28419}:${REDACTLY_WEB_PORT:-24680}"
 
     environment:
+      # Must match the build args above. The in-container ports are namespaced,
+      # so they cannot collide with anything on the host.
+      PORT: ${REDACTLY_WEB_PORT:-24680}
+      API_PORT: ${REDACTLY_API_PORT:-24681}
+
       # Chrome origin trial token for your domain. Without it visitors fall back
       # to the polyfill. See docs/deploy.md.
       WEBMCP_ORIGIN_TRIAL_TOKEN: "${WEBMCP_ORIGIN_TRIAL_TOKEN:-}"

@@ -27,7 +27,8 @@ export interface RegisteredTool {
   name: string;
   title?: string;
   description: string;
-  inputSchema?: string;
+  /** An object in current builds; a serialized string in older Chrome. */
+  inputSchema?: Record<string, unknown> | string;
   window: Window;
   origin: string;
   annotations?: ToolAnnotations;
@@ -41,11 +42,20 @@ export interface ModelContextRegisterToolOptions {
 export interface ModelContext extends EventTarget {
   registerTool(tool: ModelContextTool, options?: ModelContextRegisterToolOptions): Promise<void>;
   getTools(options?: { fromOrigins?: string[] }): Promise<RegisteredTool[]>;
-  executeTool(
+  /**
+   * Chromium execution extension, not part of the core interface, so it is
+   * optional and has to be feature detected.
+   *
+   * `inputJson` is a JSON *string*, not an object. Invalid JSON rejects without
+   * invoking the tool's handler, so a mistyped argument here fails in a way that
+   * looks like the tool itself broke. The result is a JSON string, or null when
+   * the tool resolves without a payload.
+   */
+  executeTool?(
     tool: RegisteredTool,
-    inputObject?: Record<string, unknown>,
+    inputJson: string,
     options?: { signal?: AbortSignal },
-  ): Promise<string>;
+  ): Promise<string | null>;
 }
 
 declare global {

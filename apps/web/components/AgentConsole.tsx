@@ -102,10 +102,17 @@ export default function AgentConsole({
 
     try {
       const context = getModelContext();
+      // executeTool is a Chromium extension rather than part of core
+      // ModelContext, so a browser can register tools without being able to
+      // invoke them from here. Detect it instead of assuming it.
+      const execute = context?.executeTool;
       const registered = context ? (await context.getTools()).find((item) => item.name === tool) : undefined;
-      if (context && registered) {
+      if (context && registered && typeof execute === "function") {
         setRoute("document.modelContext.executeTool()");
-        const raw = await context.executeTool(registered, input);
+        // The input crosses as a JSON string. Passing the object stringifies it
+        // to "[object Object]", which fails to parse and rejects the call before
+        // the tool's own handler ever runs.
+        const raw = await execute.call(context, registered, JSON.stringify(input));
         setResult(prettify(raw));
       } else {
         setRoute("direct handler (WebMCP not available in this browser)");
@@ -218,7 +225,11 @@ export default function AgentConsole({
   );
 }
 
-function prettify(raw: string): string {
+function prettify(raw: string | null): string {
+  // A tool that resolves without a payload is a legitimate outcome, not an error.
+  if (raw === null) {
+    return "null";
+  }
   try {
     return JSON.stringify(JSON.parse(raw), null, 2);
   } catch {
@@ -228,5 +239,9 @@ function prettify(raw: string): string {
 
 function describe(error: unknown): string {
   if (error instanceof DOMException && error.name === "AbortError") return "execution_aborted";
+  // This console belongs to the operator, not to an agent, so it reports what
+  // actually failed. Collapsing every rejection into one token hid a call that
+  // was being refused before it reached the tool at all.
+  if (error instanceof Error && error.message) return error.message;
   return "tool_execution_failed";
 }

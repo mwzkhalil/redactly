@@ -19,22 +19,23 @@ ARG API_PORT=24681
 
 # ---------------------------------------------------------------- web build ---
 FROM node:22-bookworm-slim AS web
-ARG API_PORT
 
 WORKDIR /build
-ENV NEXT_TELEMETRY_DISABLED=1 \
-    REDACTLY_API_ORIGIN=http://127.0.0.1:${API_PORT}
+ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY apps/web/package.json apps/web/package-lock.json ./
 RUN npm ci
 
 COPY apps/web/ ./
+
+# Declared here rather than at the top of the stage: an ARG invalidates every
+# layer below it, and npm ci has no business being redone because a port moved.
+ARG API_PORT
+ENV REDACTLY_API_ORIGIN=http://127.0.0.1:${API_PORT}
 RUN npm run build
 
 # ------------------------------------------------------------------ runtime ---
 FROM node:22-bookworm-slim
-ARG WEB_PORT
-ARG API_PORT
 
 # curl is used by the entrypoint's readiness probe; libgomp1 is required by
 # onnxruntime's CPU execution provider.
@@ -61,13 +62,6 @@ COPY services/api/ ./services/api/
 COPY fixtures/ ./fixtures/
 RUN cd services/api && uv sync --frozen --no-dev
 
-# Standalone omits static assets by design; they have to be placed beside the
-# server bundle. There is no public/ directory in this app, so nothing else.
-COPY --from=web /build/.next/standalone ./web/
-COPY --from=web /build/.next/static ./web/.next/static
-COPY deploy/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
 ENV REDACTLY_DETECTOR=onnx \
     REDACTLY_MODEL_ID=gravitee-io/bert-small-pii-detection \
     REDACTLY_MODEL_CACHE_DIR=/opt/model-cache \
@@ -79,13 +73,25 @@ ENV REDACTLY_DETECTOR=onnx \
 # Bake the detector into the image. Downloading on first boot would make the
 # first visitor wait on a model fetch, and would make the demo depend on the
 # hub being reachable at runtime.
+#
+# This sits above the web bundle deliberately. Below it, every edit to a React
+# component would invalidate this layer and send the build back to the hub for
+# the weights, turning a one-line frontend fix into a full re-download.
 RUN mkdir -p /opt/model-cache /home/node/state \
  && cd services/api \
  && uv run --no-dev python scripts/prefetch_model.py \
  && chown -R node:node /opt/model-cache /home/node
 
-# After the model bake, so that changing a port does not invalidate it and send
-# the build back to the hub for 130MB of weights.
+# Standalone omits static assets by design; they have to be placed beside the
+# server bundle. There is no public/ directory in this app, so nothing else.
+COPY --from=web /build/.next/standalone ./web/
+COPY --from=web /build/.next/static ./web/.next/static
+COPY deploy/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Last, so that changing a port invalidates nothing expensive above it.
+ARG WEB_PORT
+ARG API_PORT
 ENV PORT=${WEB_PORT} \
     API_PORT=${API_PORT} \
     HOSTNAME=0.0.0.0

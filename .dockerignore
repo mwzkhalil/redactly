@@ -10,6 +10,12 @@ docs/
 __pycache__/
 *.py[cod]
 
+# Holds the master key and origin trial token. Nothing in the image reads it;
+# compose passes those through as environment at run time.
+.env
+.env.*
+*.log
+
 services/api/var/
 services/api/.pytest_cache/
 services/api/tests/

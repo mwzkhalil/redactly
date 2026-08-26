@@ -88,7 +88,7 @@ clean. So a broken detector looks like an empty document list, not a leak.
 Automatic certificates and no timeout to get wrong:
 
 ```caddyfile
-redactly.example.com {
+redact.mahwiz.me {
     reverse_proxy 127.0.0.1:28419
 }
 ```
@@ -99,10 +99,31 @@ nginx defaults `proxy_read_timeout` to 60 seconds, which is **shorter than the
 approval window**. Left at the default, a reviewer taking their time will see
 the tool call fail rather than return a value.
 
+The deployed copy of this lives in `deploy/nginx/redact.mahwiz.me.conf`. Install
+it as an HTTP-only vhost first and let certbot add the TLS block:
+
+```bash
+sudo cp deploy/nginx/redact.mahwiz.me.conf /etc/nginx/sites-available/redactly
+sudo ln -sf /etc/nginx/sites-available/redactly /etc/nginx/sites-enabled/redactly
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d redact.mahwiz.me
+```
+
+Run `nginx -t` before every reload. This server hosts other sites, and a syntax
+error takes all of them down at once.
+
+Certbot rewrites the file in place. Confirm it did not drop the timeouts:
+
+```bash
+sudo nginx -T | grep -E 'proxy_read_timeout|proxy_buffering'
+```
+
+The resulting TLS server block should look like this:
+
 ```nginx
 server {
     listen 443 ssl;
-    server_name redactly.example.com;
+    server_name redact.mahwiz.me;
 
     # ssl_certificate / ssl_certificate_key via certbot
 
@@ -131,7 +152,7 @@ WebMCP is in a Chrome origin trial running from Chrome 149 to 156, ending
 17 November 2026. Without a token, `document.modelContext` does not exist for a
 visitor unless they manually enabled `chrome://flags/#enable-webmcp-testing`.
 
-1. Register `https://redactly.example.com` at
+1. Register `https://redact.mahwiz.me` at
    <https://developer.chrome.com/origintrials> for the WebMCP trial. The token is
    bound to that exact origin, scheme and host included.
 2. Put it in a `.env` beside `compose.yaml`:
@@ -180,7 +201,7 @@ set the key explicitly and store it separately.
 
 ```bash
 cd services/api
-uv run python scripts/smoke_demo.py --base-url https://redactly.example.com/api/backend
+uv run python scripts/smoke_demo.py --base-url https://redact.mahwiz.me/api/backend
 ```
 
 This plays the agent and the owner against your live origin and prints every

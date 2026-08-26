@@ -135,6 +135,9 @@ export default function DocumentViewer({ slug }: { slug: string }) {
 
   const current = pending[0] ?? null;
   const maskedCount = doc?.fields.filter((field) => field.masked).length ?? 0;
+  // Unmasked, which is not the same as reclassified: categories like ORGANIZATION
+  // are never sensitive to begin with. An approved challenge shows up as a bumped
+  // view revision, which is the honest signal for it.
   const visibleCount = (doc?.fields.length ?? 0) - maskedCount;
 
   return (
@@ -146,7 +149,7 @@ export default function DocumentViewer({ slug }: { slug: string }) {
           <p className="tagline">
             <Link href="/">All documents</Link> · {maskedCount} masked field
             {maskedCount === 1 ? "" : "s"}
-            {visibleCount > 0 ? ` · ${visibleCount} reclassified in this session` : ""} · view revision{" "}
+            {visibleCount > 0 ? ` · ${visibleCount} visible` : ""} · view revision{" "}
             {doc?.view_revision ?? "—"}
           </p>
         </div>

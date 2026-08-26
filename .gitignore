@@ -13,6 +13,8 @@ services/api/var/
 .env.*
 !.env.example
 
+*.log
+
 node_modules/
 .next/
 next-env.d.ts

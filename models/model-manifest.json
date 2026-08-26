@@ -1,0 +1,7 @@
+{
+  "model_id": "gravitee-io/bert-small-pii-detection",
+  "revision": "f8c27a85c51c0168f07b9dcf00265bf0a4097939",
+  "license": "apache-2.0",
+  "onnx_sha256": "5fc1642b7400e18ee6014571dc6ae88a7bd155389334b9fa76fbc368d2c7c493",
+  "recorded_at": "2026-08-26T13:54:59+00:00"
+}

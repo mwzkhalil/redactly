@@ -1,0 +1,16 @@
+SYNTHETIC DEMO DOCUMENT — NOT REAL PERSONAL DATA
+
+Northstar Mutual Insurance
+Claim reference: 999-88-7777
+
+Policyholder: Avery Morgan
+Date of birth: April 14, 1988
+Address: 123 Example Avenue, Testville, CA 00000
+Email: avery.morgan@example.com
+Phone: +1 (202) 555-0147
+Social Security number: 000-12-3456
+Bank account number: 0000123400005678
+
+Claimed amount: $4,200.00
+Incident: Water damage to a kitchen ceiling after a supply-line leak.
+

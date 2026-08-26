@@ -1,0 +1,24 @@
+Vega Logistics — New Starter Packet
+
+SYNTHETIC DEMO DOCUMENT — NOT REAL PERSONAL DATA
+
+Reference: VL-2026-0142
+
+Full name: Rowan Adeyemi
+Date of birth: 03/11/1996
+Address: 88 Sample Street, Unit 4, Riverbend, OR 00000
+Email: rowan.adeyemi@example.org
+Phone: 503 555 0182
+
+Payroll account: 0000998877665544
+Starting salary: $68,500.00
+Start date: September 8, 2026
+
+Team: Vega Logistics operates a depot network across the Pacific Northwest.
+Rowan joins the Riverbend depot as a scheduling analyst reporting to the
+regional operations lead. Equipment has been allocated from the Riverbend
+inventory pool and the depot access badge is issued on the first day.
+
+Note for reviewers: "Start date" and "Starting salary" are frequently
+mis-detected as personal identifiers by span-based classifiers. They are a good
+target for challenge_redaction when a redaction is clearly a false positive.

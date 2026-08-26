@@ -1,0 +1,15 @@
+.venv/
+.uv-cache/
+.model-cache/
+model-spike/artifacts/
+__pycache__/
+*.py[cod]
+
+# Generated at runtime: SQLite database and the development master key.
+services/api/var/
+
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+.DS_Store

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import DocumentList from "../components/DocumentList";
+import FrameNotice from "../components/FrameNotice";
 
 export default function HomePage() {
   return (
     <main className="shell">
+      <FrameNotice />
       <header className="masthead">
         <div>
           <h1>Redactly</h1>

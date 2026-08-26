@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { getModelContext, type ToolHandler } from "../lib/webmcp/register-tools";
+import type { ContextMode } from "../lib/webmcp/ensure-model-context";
 import { TOOL_DESCRIPTORS, type ToolName } from "../lib/webmcp/tool-schemas";
 import type { FieldSummary } from "../lib/types";
 
 interface Props {
   fields: FieldSummary[];
   handlers: Record<ToolName, ToolHandler> | null;
-  nativeAvailable: boolean;
+  contextMode: ContextMode;
   /**
    * Which field the call targets. Owned by the parent so clicking a placeholder
    * in the document and choosing one here cannot disagree — two SSN fields in the
@@ -24,6 +25,15 @@ const NEEDS_PLACEHOLDER = new Set<ToolName>([
   "request_field_unmask",
   "challenge_redaction",
 ]);
+
+const CONTEXT_NOTE: Record<ContextMode, string> = {
+  native:
+    "This browser ships document.modelContext, so calls below go through the real tool registration.",
+  polyfill:
+    "This browser has no native document.modelContext, so the WebMCP polyfill is providing one. Calls below still go through registerTool and executeTool — the registration is real, the platform implementation is not.",
+  unavailable:
+    "No model context is available here, so calls below invoke the same handler the tool wraps. The boundary is identical either way, because it lives in the policy service rather than on this page.",
+};
 
 const FREE_TEXT_LABEL: Partial<Record<ToolName, { key: string; label: string; placeholder: string }>> = {
   request_field_unmask: {
@@ -49,7 +59,7 @@ const FREE_TEXT_LABEL: Partial<Record<ToolName, { key: string; label: string; pl
 export default function AgentConsole({
   fields,
   handlers,
-  nativeAvailable,
+  contextMode,
   selected,
   onSelectField,
 }: Props) {
@@ -110,11 +120,7 @@ export default function AgentConsole({
 
   return (
     <div className="panel-body">
-      <p className="muted" style={{ marginTop: 0 }}>
-        {nativeAvailable
-          ? "This browser exposes document.modelContext, so calls below run through the real tool registration."
-          : "This browser has no document.modelContext, so calls below invoke the same handler the tool wraps. The security boundary is identical either way — it lives in the policy service."}
-      </p>
+      <p className="muted" style={{ marginTop: 0 }}>{CONTEXT_NOTE[contextMode]}</p>
 
       <label className="field">
         <span>Tool</span>

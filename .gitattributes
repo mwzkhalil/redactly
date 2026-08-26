@@ -1,0 +1,11 @@
+# Anything the Linux container executes or parses must keep LF endings. A CRLF
+# shell script fails with a "bad interpreter" error that names the shell rather
+# than the line endings, which is a genuinely hard failure to read.
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+*.yaml          text eol=lf
+*.yml           text eol=lf
+
+# Fixtures are compared by character offset and hashed. Normalising them per
+# platform would move every span and change every digest.
+fixtures/**     text eol=lf

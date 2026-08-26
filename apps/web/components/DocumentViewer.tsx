@@ -5,17 +5,18 @@ import { useCallback, useEffect, useState } from "react";
 import { api, ensureSession } from "../lib/api/client";
 import {
   buildHandlers,
-  isWebMcpAvailable,
   registerRedactlyTools,
   type ActivityEntry,
   type ToolHandler,
 } from "../lib/webmcp/register-tools";
+import { ensureModelContext, type ContextMode } from "../lib/webmcp/ensure-model-context";
 import type { ToolName } from "../lib/webmcp/tool-schemas";
 import type { AuditEvent, MaskedDocumentPayload, PendingRequest } from "../lib/types";
 import AgentConsole from "./AgentConsole";
 import ApprovalModal from "./ApprovalModal";
 import AuditTable from "./AuditTable";
 import ChallengeModal from "./ChallengeModal";
+import FrameNotice from "./FrameNotice";
 import MaskedDocument from "./MaskedDocument";
 
 interface WatchResponse {
@@ -24,13 +25,19 @@ interface WatchResponse {
   requests: PendingRequest[];
 }
 
+const CONTEXT_LABEL: Record<ContextMode, string> = {
+  native: "native document.modelContext",
+  polyfill: "document.modelContext via polyfill",
+  unavailable: "no model context available",
+};
+
 export default function DocumentViewer({ slug }: { slug: string }) {
   const [doc, setDoc] = useState<MaskedDocumentPayload | null>(null);
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [pending, setPending] = useState<PendingRequest[]>([]);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [registered, setRegistered] = useState<ToolName[]>([]);
-  const [nativeAvailable, setNativeAvailable] = useState(false);
+  const [contextMode, setContextMode] = useState<ContextMode>("unavailable");
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +62,9 @@ export default function DocumentViewer({ slug }: { slug: string }) {
     (async () => {
       try {
         await ensureSession();
+        // Install the polyfill before registering, so tools land in a real
+        // model context even where the browser has not shipped one.
+        setContextMode(await ensureModelContext());
         const built = buildHandlers({
           slug,
           signal: controller.signal,
@@ -62,7 +72,6 @@ export default function DocumentViewer({ slug }: { slug: string }) {
         });
         setHandlers(built);
         const names = await registerRedactlyTools({ slug, signal: controller.signal }, built);
-        setNativeAvailable(isWebMcpAvailable());
         setRegistered(names);
         await refresh(controller.signal);
       } catch {
@@ -130,6 +139,7 @@ export default function DocumentViewer({ slug }: { slug: string }) {
 
   return (
     <main className="shell">
+      <FrameNotice />
       <header className="masthead">
         <div>
           <h1>{doc?.title ?? slug}</h1>
@@ -141,8 +151,8 @@ export default function DocumentViewer({ slug }: { slug: string }) {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <span className={nativeAvailable ? "pill live" : "pill absent"}>
-            {nativeAvailable ? "document.modelContext detected" : "WebMCP not available in this browser"}
+          <span className={contextMode === "unavailable" ? "pill absent" : "pill live"}>
+            {CONTEXT_LABEL[contextMode]}
           </span>
           <span className="pill">{registered.length} tools registered</span>
         </div>
@@ -179,7 +189,7 @@ export default function DocumentViewer({ slug }: { slug: string }) {
             <AgentConsole
               fields={doc?.fields ?? []}
               handlers={handlers}
-              nativeAvailable={nativeAvailable}
+              contextMode={contextMode}
               selected={selected}
               onSelectField={setSelected}
             />

@@ -1,0 +1,46 @@
+# Self-hosted Redactly.
+#
+# The container publishes one port and runs both processes: Next.js is the front
+# door, uvicorn listens on container loopback. Put a TLS terminator in front of
+# this — WebMCP requires a secure context, so the demo is inert over plain HTTP
+# on anything but localhost.
+
+services:
+  redactly:
+    build: .
+    image: redactly:latest
+    container_name: redactly
+    restart: unless-stopped
+
+    # Bound to loopback on purpose: the reverse proxy is the only thing that
+    # should reach this. Set REDACTLY_BIND=0.0.0.0 to expose it directly, but
+    # then WebMCP will not activate for anyone, because the origin is not secure.
+    ports:
+      - "${REDACTLY_BIND:-127.0.0.1}:7860:7860"
+
+    environment:
+      # Chrome origin trial token for your domain. Without it visitors fall back
+      # to the polyfill. See docs/deploy.md.
+      WEBMCP_ORIGIN_TRIAL_TOKEN: "${WEBMCP_ORIGIN_TRIAL_TOKEN:-}"
+
+      # Base64 32-byte key. Leave unset and one is generated into the state
+      # volume on first boot, which is fine as long as that volume persists.
+      REDACTLY_MASTER_KEY: "${REDACTLY_MASTER_KEY:-}"
+
+      # A human has to read the request and decide. Two minutes is tight if you
+      # are narrating a demo; raise it rather than losing the approval.
+      REDACTLY_APPROVAL_TIMEOUT_SECONDS: "${REDACTLY_APPROVAL_TIMEOUT_SECONDS:-180}"
+
+    # Holds the SQLite database and the generated master key. They must persist
+    # together: a new key cannot decrypt documents written under the old one.
+    volumes:
+      - redactly-state:/home/node/state
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  redactly-state:

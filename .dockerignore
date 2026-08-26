@@ -1,0 +1,24 @@
+# Build context hygiene. The uv cache alone is hundreds of megabytes and would
+# otherwise be uploaded to the daemon on every build.
+.git/
+.gitignore
+.venv/
+.uv-cache/
+.model-cache/
+model-spike/
+docs/
+__pycache__/
+*.py[cod]
+
+services/api/var/
+services/api/.pytest_cache/
+services/api/tests/
+
+apps/web/node_modules/
+apps/web/.next/
+apps/web/next-env.d.ts
+apps/web/*.tsbuildinfo
+
+Dockerfile
+.dockerignore
+README.md

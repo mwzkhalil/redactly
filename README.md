@@ -78,6 +78,22 @@ Between runs, `uv run python scripts/reset_demo.py` drops the database so the
 fixtures are re-scanned and the audit trail starts empty. The service has to be
 stopped first, since SQLite holds the file open.
 
+## Deploying
+
+```bash
+docker compose up -d --build
+```
+
+One container, one origin: Next.js is the front door and uvicorn listens on
+container loopback. That is a requirement rather than tidiness — an unmask blocks
+server-side until a human decides, so anything with a short request timeout in
+front of it will cut the approval off mid-wait. Put TLS in front, since WebMCP
+needs a secure context to activate at all.
+
+Full instructions, including the reverse-proxy timeout that most often breaks a
+deploy and how to get native WebMCP via a Chrome origin-trial token, are in
+[`docs/deploy.md`](docs/deploy.md).
+
 ## Running it
 
 Two terminals. Python 3.11+ with [uv](https://docs.astral.sh/uv/), and Node 20+.

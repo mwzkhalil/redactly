@@ -129,6 +129,40 @@ WebMCP needs a secure context; `localhost` counts. In a browser without
 tools wrap, so the flow is still demonstrable — the boundary is in the policy
 service either way.
 
+## Driving the tools with a real agent
+
+The in-page console is a harness, not the claim. The claim is that an agent the
+page does not control can discover these tools and call them, and the honest way
+to check that is with a client nobody here wrote.
+
+1. Enable `chrome://flags/#enable-webmcp-testing` (Chrome 146+). The header pill
+   on a document should change from `via polyfill` to
+   `native document.modelContext`.
+2. Install any WebMCP client extension — for example
+   [nekuda WebMCP Workbench](https://chromewebstore.google.com/detail/nekuda-webmcp-workbench/amochnnbmnkjjlblolhpddkokhnalkjp),
+   which lists a page's tools, validates arguments against their schemas, and can
+   drive them with a model.
+3. Open a document. Five tools appear in the extension, because registration is
+   scoped to the document route rather than the site.
+
+What is worth watching there rather than in the console: `request_field_unmask`
+blocks until the modal is answered, so the extension sits waiting on a human;
+and calling it twice yields the value once and then `already_consumed`. Neither
+outcome is produced by this page — both come from the policy service, which is
+the point.
+
+Without an extension, the same discovery and execution path is two lines in
+DevTools:
+
+```js
+const context = document.modelContext;
+const view = (await context.getTools()).find((tool) => tool.name === "request_document_view");
+JSON.parse(await context.executeTool(view, JSON.stringify({ purpose: "spot check" })));
+```
+
+`executeTool` takes its arguments as a JSON *string*; passing an object rejects
+before the tool runs.
+
 ### Walking the whole lifecycle without a browser
 
 `scripts/smoke_demo.py` plays both roles against a running service: it calls
@@ -164,6 +198,7 @@ uv run pytest -v
 | `test_timeouts.py` | Unanswered requests and expired grants fail closed; an agent is never the actor that resolves its own request |
 | `test_verification_oracle.py` | Rate limits bound enumeration; digests do not correlate across documents |
 | `test_state_machines.py` | No transition returns to `PENDING` or `READY` |
+| `test_reseed_safety.py` | A restart cannot unmask a document for a session that outlives it; a view refuses to render from an incomplete field mapping |
 
 ## Configuration
 

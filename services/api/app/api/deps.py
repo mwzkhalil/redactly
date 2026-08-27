@@ -36,9 +36,21 @@ async def current_session(request: Request) -> SessionContext:
 
 
 def _load_session_document(handle: sqlite3.Connection, session_id: int, slug: str) -> sqlite3.Row | None:
+    """Resolve the session's view of a document, materialising it when needed.
+
+    An existing row is not sufficient on its own. `session_documents` survives a
+    re-ingest while `session_fields` cascades away with the `redaction_fields` it
+    points at, which leaves a session holding a document it can see but no field
+    references — and a view built from no fields is an unmasked view. So the
+    mapping is checked, not assumed, and `open_document` repairs it when short.
+    """
     existing = redaction.get_session_document(handle, session_id=session_id, slug=slug)
-    if existing is not None:
+    if existing is not None and not redaction.unmapped_field_count(
+        handle, session_document_id=int(existing["id"])
+    ):
         return existing
+    # Idempotent, so this both creates a first-time mapping and completes a
+    # partial one. Reading first keeps the write lock off the common path.
     if redaction.open_document(handle, session_id=session_id, slug=slug) is None:
         return None
     return redaction.get_session_document(handle, session_id=session_id, slug=slug)

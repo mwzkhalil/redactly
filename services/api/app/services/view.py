@@ -142,6 +142,12 @@ def build_view(
             return {"status": str(ToolStatus.STALE), "reason": "view_revision_changed"}
         page_index = int(payload.get("p", 0))
 
+    # Masking is derived entirely from the session's field rows, so an incomplete
+    # mapping would render the missing spans as plain text rather than error. Fail
+    # closed: a document that cannot be masked is not a document to hand over.
+    if redaction.unmapped_field_count(handle, session_document_id=session_document_id):
+        return {"status": str(ToolStatus.UNAVAILABLE), "reason": "view_not_materialised"}
+
     text = redaction.document_text(handle, session_document_id=session_document_id)
     fields = redaction.list_fields(handle, session_document_id=session_document_id)
     pages = paginate(build_tokens(text, fields), settings.view_page_characters)

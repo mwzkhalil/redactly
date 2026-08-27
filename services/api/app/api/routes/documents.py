@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import sqlite3
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
 from ...db import session as db
-from ...domain.enums import Actor, EventType
+from ...domain.enums import Actor, EventType, ToolStatus
 from ...db.session import immediate
 from ...schemas import SLUG_PATTERN
 from ...services import audit, redaction, view
@@ -37,6 +37,15 @@ def _masked_document(handle: sqlite3.Connection, session_id: int, session_docume
         """,
         (session_document_id,),
     ).fetchone()
+
+    # Same fail-closed rule the agent view applies. The human viewer renders from
+    # the same field rows, so an incomplete mapping would show the raw document
+    # here too — which is the more dangerous of the two, because it looks correct.
+    if redaction.unmapped_field_count(handle, session_document_id=session_document_id):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"status": str(ToolStatus.UNAVAILABLE), "reason": "view_not_materialised"},
+        )
 
     text = redaction.document_text(handle, session_document_id=session_document_id)
     fields = redaction.list_fields(handle, session_document_id=session_document_id)

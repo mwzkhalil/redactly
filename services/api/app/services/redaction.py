@@ -244,6 +244,30 @@ def list_fields(handle: sqlite3.Connection, *, session_document_id: int) -> list
     ]
 
 
+def unmapped_field_count(handle: sqlite3.Connection, *, session_document_id: int) -> int:
+    """Detected fields this session holds no reference for.
+
+    Rendering derives masking solely from `session_fields`, so an incomplete
+    mapping does not fail loudly — it emits the raw span for everything missing.
+    A non-zero count here means a view must be refused rather than built.
+    """
+    row = handle.execute(
+        """
+        SELECT (
+                   SELECT COUNT(*) FROM redaction_fields
+                   WHERE redaction_fields.document_id = session_documents.document_id
+               ) - (
+                   SELECT COUNT(*) FROM session_fields
+                   WHERE session_fields.session_document_id = session_documents.id
+               ) AS missing
+        FROM session_documents
+        WHERE session_documents.id = ?
+        """,
+        (session_document_id,),
+    ).fetchone()
+    return 0 if row is None else int(row["missing"])
+
+
 def get_session_field(handle: sqlite3.Connection, *, session_id: int, field_ref: str) -> sqlite3.Row | None:
     """Resolve a public field reference, always joined through the caller's session.
 
@@ -318,13 +342,38 @@ def resolve_raw_value(handle: sqlite3.Connection, *, session_field_id: int) -> s
     return text[int(row["start_offset"]) : int(row["end_offset"])]
 
 
+def _already_ingested(handle: sqlite3.Connection, *, slug: str, text: str) -> bool:
+    """True when the stored copy of this document is already current.
+
+    Re-ingesting is destructive: it deletes and recreates `redaction_fields`, and
+    `session_fields` cascades from those rows. Doing that on every boot strips the
+    per-session mapping out from under every live session, and a session that
+    resolves no fields renders the document with nothing masked at all. Seeding
+    therefore has to be a no-op when the content has not changed.
+    """
+    row = handle.execute(
+        "SELECT processing_status, content_sha256 FROM documents WHERE slug = ?",
+        (slug,),
+    ).fetchone()
+    if row is None:
+        return False
+    # A FAILED document is re-ingested deliberately, so a boot with a working
+    # detector retries one that was stored while the detector was unavailable.
+    return (
+        row["processing_status"] == ProcessingStatus.READY
+        and row["content_sha256"] == crypto.content_digest(text)
+    )
+
+
 def seed_from_fixtures(handle: sqlite3.Connection, directory) -> list[str]:
     slugs: list[str] = []
     for path in sorted(directory.glob("*.txt")):
         text = path.read_text(encoding="utf-8")
+        slugs.append(path.stem)
+        if _already_ingested(handle, slug=path.stem, text=text):
+            continue
         title = text.strip().splitlines()[0][:120] if text.strip() else path.stem
         ingest_document(handle, slug=path.stem, title=title, text=text)
-        slugs.append(path.stem)
     return slugs
 
 
